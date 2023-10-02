@@ -21,6 +21,30 @@ def save_model(epoch, model_name, model):
     print("saving model at ", filename)
     torch.save(model, filename)
 
+def custom_multi_label_loss(output, target, wgt):
+    """
+    Custom loss function for multi-label classification with sample weights.
+    
+    Args:
+    - output: Model predictions (logits)
+    - target: Ground truth labels (binary, 0 or 1)
+    - wgt: Weights for each sample (0 for easy, 1 for difficult)
+    
+    Returns:
+    - loss: Computed loss, a single floating point number
+    """
+    # Apply sigmoid activation to logits to get predicted probabilities
+    predicted_probs = torch.sigmoid(output)
+    
+    # Avoid potential numerical instability by clipping probabilities
+    predicted_probs = torch.clamp(predicted_probs, min=1e-7, max=1 - 1e-7)
+    
+    # Compute the binary cross-entropy loss element-wise
+    loss = -wgt * (target * torch.log(predicted_probs) + (1 - target) * torch.log(1 - predicted_probs))
+    
+    # Compute the average loss across all samples
+    loss = torch.mean(loss)
+    return loss
 
 def train(args, model, optimizer, scheduler=None, model_name='model'):
     writer = SummaryWriter()
@@ -53,7 +77,10 @@ def train(args, model, optimizer, scheduler=None, model_name='model'):
             # Function Outputs:
             #   - `output`: Computed loss, a single floating point number
             ##################################################################
-            loss = 0
+            loss = custom_multi_label_loss(output, target, wgt)
+            
+            # Log the loss to TensorBoard
+            writer.add_scalar("Loss/train", loss.item(), cnt)
             ##################################################################
             #                          END OF YOUR CODE                      #
             ##################################################################

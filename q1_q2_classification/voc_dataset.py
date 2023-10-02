@@ -11,6 +11,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
+import random
 
 class VOCDataset(Dataset):
     CLASS_NAMES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
@@ -31,8 +32,9 @@ class VOCDataset(Dataset):
         split_file = os.path.join(data_dir, 'ImageSets/Main', split + '.txt')
         with open(split_file) as fp:
             self.index_list = [line.strip() for line in fp]
-
+        print("bf anno")
         self.anno_list = self.preload_anno()
+        print("af anno")
 
     @classmethod
     def get_class_name(cls, index):
@@ -55,7 +57,6 @@ class VOCDataset(Dataset):
         for index in self.index_list:
             fpath = os.path.join(self.ann_dir, index + '.xml')
             tree = ET.parse(fpath)
-            
             #######################################################################
             # TODO: Insert your code here to preload labels
             # Hint: the folder Annotations contains .xml files with class labels
@@ -71,6 +72,20 @@ class VOCDataset(Dataset):
             # The weight vector should be a 20-dimensional vector with weight[i] = 0 iff an object of class i has the `difficult` attribute set to 1 in the XML file and 1 otherwise
             # The difficult attribute specifies whether a class is ambiguous and by setting its weight to zero it does not contribute to the loss during training 
             weight_vec = torch.ones(20)
+
+            root = tree.getroot()
+            for child in root:
+                if child.tag == "object":
+                    index = self.INV_CLASS[child[0].text]
+                    if class_vec[index] == 1:
+                        continue
+                    else:
+                        class_vec[index] = 1
+                    
+                    if child[3].text == 1:
+                        weight_vec[index] = 0
+                    else:
+                        weight_vec[index] = 1
 
             ######################################################################
             #                            END OF YOUR CODE                        #
@@ -92,7 +107,25 @@ class VOCDataset(Dataset):
         # change and you will have to write the correct value of `flat_dim`
         # in line 46 in simple_cnn.py
         ######################################################################
-        pass
+        # Define a list of possible augmentations
+        augmentations = [
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomResizedCrop(size=(64, 64), antialias=True)
+            # transforms.RandomRotation(degrees=(-45, 45)),
+            # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
+            # transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+            # Add more augmentations as needed
+        ]
+
+        # Randomly select a subset of augmentations
+        num_augmentations = random.randint(1, len(augmentations))
+        selected_augmentations = random.sample(augmentations, num_augmentations)
+
+        # Combine the selected augmentations into a single transformation
+        augmentation_transform = transforms.Compose(selected_augmentations)
+        return augmentations
+
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
