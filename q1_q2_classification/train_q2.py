@@ -18,16 +18,15 @@ class ResNet(nn.Module):
         # TODO: Define a FC layer here to process the features
         ##################################################################
         
-        # # Remove the final classification layer (fully connected layer)
-        # self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])
+        self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])
 
         for param in self.resnet.parameters():
             param.requires_grad = False
 
-        self.resnet.fc.requires_grad = True
-
+        
         # Define your own classification layer for the specific task
-        self.fc = nn.Linear(1000, num_classes) 
+        self.fc = nn.Linear(512, num_classes) 
+        self.fc.requires_grad = True
 
         ##################################################################
         #                          END OF YOUR CODE                      #

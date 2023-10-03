@@ -77,10 +77,7 @@ class VOCDataset(Dataset):
             for child in root:
                 if child.tag == "object":
                     index = self.INV_CLASS[child[0].text]
-                    if class_vec[index] == 1:
-                        continue
-                    else:
-                        class_vec[index] = 1
+                    class_vec[index] = 1
                     
                     if child[3].text == 1:
                         weight_vec[index] = 0

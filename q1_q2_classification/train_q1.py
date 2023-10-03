@@ -24,7 +24,7 @@ if __name__ == "__main__":
         use_cuda=True,
         val_every=70,
         lr=0.001,
-        batch_size=4,
+        batch_size=32,
         step_size=10,
         gamma=0.1,
     )
