@@ -108,19 +108,13 @@ class VOCDataset(Dataset):
         augmentations = [
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
-            transforms.RandomResizedCrop(size=(64, 64), antialias=True)
-            # transforms.RandomRotation(degrees=(-45, 45)),
-            # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
-            # transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+            transforms.CenterCrop(size=(self.size, self.size)),
+            transforms.RandomRotation(degrees=(-45, 45)),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
             # Add more augmentations as needed
         ]
 
-        # Randomly select a subset of augmentations
-        num_augmentations = random.randint(1, len(augmentations))
-        selected_augmentations = random.sample(augmentations, num_augmentations)
-
-        # Combine the selected augmentations into a single transformation
-        augmentation_transform = transforms.Compose(selected_augmentations)
+    
         return augmentations
 
         ######################################################################
