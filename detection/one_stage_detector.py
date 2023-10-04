@@ -127,12 +127,11 @@ class DetectorBackboneWithFPN(nn.Module):
         fpn_feats["p3"] = self.output_p3(p3)
         fpn_feats["p4"] = self.output_p4(p4)
         fpn_feats["p5"] = self.output_p5(p5)
-
         # You can also apply additional operations to FPN levels as needed
         # For example, if you want to applyReLU  activation:
-        p3 = F.relu(p3)
-        p4 = F.relu(p4)
-        p5 = F.relu(p5)
+        fpn_feats["p3"] = F.relu(fpn_feats["p3"])
+        fpn_feats["p4"] = F.relu(fpn_feats["p4"])
+        fpn_feats["p5"] = F.relu(fpn_feats["p5"])
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
