@@ -1,6 +1,7 @@
 import torch
 import utils
 from torch.utils.data import DataLoader
+from utils import ARGS
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,14 +12,12 @@ from sklearn.decomposition import PCA
 from skimage.color import rgb2lab, deltaE_cie76
 from collections import defaultdict
 
-PATH =""
+PATH = "checkpoint-model-epoch50.pth"
 
 def load_model(filename):
     return torch.load(filename)
 
-def visualize(args, model, dataset):
-    test_loader = utils.get_data_loader('voc', train=False, batch_size=args.test_batch_size, split='test', inp_size=args.inp_size)
-
+def visualize(args, model, test_loader):
     # Determine the total number of samples in the test dataset
     total_samples = len(test_loader.dataset)
 
@@ -105,8 +104,7 @@ def extract_features(model, device, test_loader):
     plt.title('t-SNE Projection of ImageNet Features Color-Coded by GT Class')
 
     # Show the plot
-    plt.show()PCA tries to reduce dimensionality by maximizing variance in the data while t-SNE tries to do the same by keeping similar data points together (and dissimilar data points apart) in both higher and lower dimensions. Because of these reasons, t-SNE can easily outperform PCA in dimensionality reduction.
-
+    plt.show()
     
     file_path = "t-SNE plot.png"  
 
@@ -118,3 +116,23 @@ def extract_features(model, device, test_loader):
 
     # Print a message indicating that the plot has been saved
     print(f"Plot saved as {file_path}")
+
+
+if __name__ == "__main__":
+    args = ARGS(
+        epochs=50,
+        inp_size=224,
+        use_cuda=True,
+        val_every=70,
+        lr=0.001,
+        batch_size=256,
+        step_size=10,
+        gamma=0.1,
+        save_at_end=True,
+        save_freq =10,
+    )
+
+    model = load_model(PATH)
+    test_loader = utils.get_data_loader('voc', train=False, batch_size=args.test_batch_size, split='test', inp_size=args.inp_size)
+    visualize(args, model, test_loader)
+    
