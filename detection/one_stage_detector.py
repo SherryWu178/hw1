@@ -57,9 +57,9 @@ class DetectorBackboneWithFPN(nn.Module):
         dummy_out = self.backbone(torch.randn(2, 3, 224, 224))
         dummy_out_shapes = [(key, value.shape) for key, value in dummy_out.items()]
 
-        # print("For dummy input images with shape: (2, 3, 224, 224)")
-        # for level_name, feature_shape in dummy_out_shapes:
-        #     print(f"Shape of {level_name} features: {feature_shape}")
+        print("For dummy input images with shape: (2, 3, 224, 224)")
+        for level_name, feature_shape in dummy_out_shapes:
+            print(f"Shape of {level_name} features: {feature_shape}")
 
         ######################################################################
         # TODO: Initialize additional Conv layers for FPN.                   #
@@ -78,6 +78,14 @@ class DetectorBackboneWithFPN(nn.Module):
         # there are trainable weights inside it.
         # Add THREE lateral 1x1 conv and THREE output 3x3 conv layers.
         self.fpn_params = nn.ModuleDict()
+        self.lateral_c3 = nn.Conv2d(64, out_channels, kernel_size=1)
+        self.lateral_c4 = nn.Conv2d(160, out_channels, kernel_size=1)
+        self.lateral_c5 = nn.Conv2d(400, out_channels, kernel_size=1)
+
+        self.output_p3 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.output_p4 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.output_p5 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -103,7 +111,28 @@ class DetectorBackboneWithFPN(nn.Module):
         # HINT: Use `F.interpolate` to upsample FPN features.                #
         ######################################################################
 
-        pass
+        out = self.backbone(images)
+
+        print("For dummy input images with shape: (2, 3, 224, 224)")
+
+        for level_name, feature in out.items():
+            backbone_feats[level_name] = feature
+            
+        # Upsample and merge the features to create the FPN levels
+        p5 = backbone_feats["c5"]
+        p4 = backbone_feats["c4"] + F.interpolate(p5, scale_factor=2, mode="nearest")
+        p3 = backbone_feats["c3"] + F.interpolate(p4, scale_factor=2, mode="nearest")
+
+        # Apply output 3x3 convolutions to obtain final FPN features
+        fpn_feats["p3"] = self.output_p3(p3)
+        fpn_feats["p4"] = self.output_p4(p4)
+        fpn_feats["p5"] = self.output_p5(p5)
+
+        # You can also apply additional operations to FPN levels as needed
+        # For example, if you want to applyReLU  activation:
+        p3 = F.relu(p3)
+        p4 = F.relu(p4)
+        p5 = F.relu(p5)
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -249,7 +278,7 @@ class FCOS(nn.Module):
         # TODO: Initialize backbone and prediction network using arguments.  #
         ######################################################################
         # Feel free to delete these two lines: (but keep variable names same)
-        self.backbone = None
+        self.backbone = DetectorBackboneWithFPN(fpn_channels)
         self.pred_net = None
         # Replace "pass" statement with your code
         pass
