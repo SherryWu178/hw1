@@ -2,6 +2,7 @@ import torch
 import utils
 from torch.utils.data import DataLoader
 from utils import ARGS
+from train_q2 import ResNet
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -58,40 +59,50 @@ def extract_features(model, device, test_loader):
         for data, target, wgt in test_loader:
             data = data.to(device)
             output = model(data)
-            test_features.append(output.cpu().numpy())
+            test_features.append(output.cpu().numpy().ravel())
             gt_classes.append(target.cpu().numpy())
 
     
     # Ensure that the features are standardized (mean=0, std=1)
+    print(len(test_features))
+    print(test_features[0].shape)
     scaler = StandardScaler()
     test_features = scaler.fit_transform(test_features)
 
+    print("standardised")
     # Perform PCA for dimensionality reduction (optional, but can help)
     # pca = PCA(n_components=50)  # You can adjust the number of components
     # test_features_pca = pca.fit_transform(test_features)
 
     # Perform t-SNE on the features
     tsne = TSNE(n_components=2, random_state=0)
-    tsne_results = tsne.fit_transform(test_features_pca)
+    tsne_results = tsne.fit_transform(test_features)
+    print("tsne_results")
+    print(tsne_results)
 
     # Prepare colors for class labels
-    unique_classes = np.unique(gt_classes)
-    class_colors = plt.cm.tab20(np.linspace(0, 1, len(unique_classes)))
+    class_colors = plt.cm.tab20(np.linspace(0, 1, 20))
 
     # Create a dictionary to store the mean color for each class
     class_mean_colors = defaultdict(list)
 
     # Create a scatter plot with color-coded points
     plt.figure(figsize=(10, 8))
-    for i, class_label in enumerate(unique_classes):
-        mask = (gt_classes == class_label)
-        class_tsne_results = tsne_results[mask]
+    
+    mean_colors = np.zeros((len(gt_classes), 4))  # Initialize a 2D array for colors (RGBA format)
 
-        # Calculate the mean color for this class
-        mean_color = np.mean(class_colors[i:i+1], axis=0)
-        class_mean_colors[class_label] = mean_color
+    for i, class_label in enumerate(gt_classes):
+        mask = (np.ones(20) == class_label.ravel())
+        mean_color = np.mean(class_colors[mask], axis=0)
+        mean_colors[i] = mean_color  # Assign the mean color to the 2D array
+   
+    print(len(mean_colors))
+    print(mean_colors[0])
+    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
+    plt.show()
 
-        plt.scatter(class_tsne_results[:, 0], class_tsne_results[:, 1], label=f'Class {class_label}', c=[mean_color])
+
+    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], label=f'Class {class_label}', c=[mean_colors])
 
     # Create a legend with class labels
     handles = [plt.Line2D([0], [0], marker='o', color='w', label=f'Class {label}', 
@@ -130,8 +141,9 @@ if __name__ == "__main__":
         gamma=0.1,
         save_at_end=True,
         save_freq =10,
+        test_batch_size = 1
     )
-
+    model = ResNet(20)
     model = load_model(PATH)
     test_loader = utils.get_data_loader('voc', train=False, batch_size=args.test_batch_size, split='test', inp_size=args.inp_size)
     visualize(args, model, test_loader)
