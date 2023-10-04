@@ -62,12 +62,12 @@ def extract_features(model, device, test_loader):
             test_features.append(output.cpu().numpy().ravel())
             gt_classes.append(target.cpu().numpy())
 
-    
+    test_features = np.array(test_features)
     # Ensure that the features are standardized (mean=0, std=1)
     print(len(test_features))
     print(test_features[0].shape)
-    scaler = StandardScaler()
-    test_features = scaler.fit_transform(test_features)
+    # scaler = StandardScaler()
+    # test_features = scaler.fit_transform(test_features)
 
     print("standardised")
     # Perform PCA for dimensionality reduction (optional, but can help)
@@ -98,11 +98,7 @@ def extract_features(model, device, test_loader):
    
     print(len(mean_colors))
     print(mean_colors[0])
-    plt.plot(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
-    plt.show()
-
-
-    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], label=f'Class {class_label}', c=[mean_colors])
+    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
 
     # Create a legend with class labels
     handles = [plt.Line2D([0], [0], marker='o', color='w', label=f'Class {label}', 
@@ -114,8 +110,6 @@ def extract_features(model, device, test_loader):
     plt.ylabel('t-SNE Dimension 2')
     plt.title('t-SNE Projection of ImageNet Features Color-Coded by GT Class')
 
-    # Show the plot
-    plt.show()
     
     file_path = "t-SNE plot.png"  
 
