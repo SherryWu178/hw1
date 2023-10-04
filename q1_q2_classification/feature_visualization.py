@@ -98,7 +98,7 @@ def extract_features(model, device, test_loader):
    
     print(len(mean_colors))
     print(mean_colors[0])
-    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
+    plt.plot(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
     plt.show()
 
 
