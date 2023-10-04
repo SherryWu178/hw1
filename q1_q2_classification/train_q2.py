@@ -63,13 +63,16 @@ if __name__ == "__main__":
     ##################################################################
     args = ARGS(
         epochs=50,
-        inp_size=64,
+        inp_size=224,
         use_cuda=True,
         val_every=70,
         lr=0.001,
         batch_size=256,
         step_size=10,
-        gamma=0.1
+        gamma=0.1,
+        save_at_end=True,
+        save_freq =10,
+
     )
     ##################################################################
     #                          END OF YOUR CODE                      #
@@ -96,3 +99,4 @@ if __name__ == "__main__":
     # trains model using your training code and reports test map
     test_ap, test_map = trainer.train(args, model, optimizer, scheduler)
     print('test map:', test_map)
+
