@@ -355,14 +355,18 @@ class FCOS(nn.Module):
         ######################################################################
         # List of dictionaries with keys {"p3", "p4", "p5"} giving matched
         # boxes for locations per FPN level, per image. Fill this list:
-        matched_gt_boxes = []
-        pass
+        B = gt_boxes.shape[0]
+        for i in range(B):
+            gt_box = gt_boxes[i, :, :]
+            matched_gt_boxes[i] = fcos_match_locations_to_gt(gt_box, locations_per_fpn_level)
+
 
         # Calculate GT deltas for these matched boxes. Similar structure
         # as `matched_gt_boxes` above. Fill this list:
-        matched_gt_deltas = []
         # Replace "pass" statement with your code
-        pass
+        for i in range(B):
+            gt_box = gt_boxes[i, :, :]
+            matched_gt_deltas[i] = fcos_get_deltas_from_locations(gt_box, locations_per_fpn_level)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
