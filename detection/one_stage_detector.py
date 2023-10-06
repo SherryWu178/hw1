@@ -54,12 +54,12 @@ class DetectorBackboneWithFPN(nn.Module):
         # Features are a dictionary with keys as defined above. Values are
         # batches of tensors in NCHW format, that give intermediate features
         # from the backbone network.
-        dummy_out = self.backbone(torch.randn(2, 3, 224, 224))
-        dummy_out_shapes = [(key, value.shape) for key, value in dummy_out.items()]
+        # dummy_out = self.backbone(torch.randn(2, 3, 224, 224))
+        # dummy_out_shapes = [(key, value.shape) for key, value in dummy_out.items()]
 
-        print("For dummy input images with shape: (2, 3, 224, 224)")
-        for level_name, feature_shape in dummy_out_shapes:
-            print(f"Shape of {level_name} features: {feature_shape}")
+        # print("For dummy input images with shape: (2, 3, 224, 224)")
+        # for level_name, feature_shape in dummy_out_shapes:
+        #     print(f"Shape of {level_name} features: {feature_shape}")
 
         ######################################################################
         # TODO: Initialize additional Conv layers for FPN.                   #
@@ -112,16 +112,14 @@ class DetectorBackboneWithFPN(nn.Module):
         ######################################################################
 
         out = self.backbone(images)
-
-        print("For dummy input images with shape: (2, 3, 224, 224)")
-
+        
         for level_name, feature in out.items():
             backbone_feats[level_name] = feature
             
         # Upsample and merge the features to create the FPN levels
-        p5 = backbone_feats["c5"]
-        p4 = backbone_feats["c4"] + F.interpolate(p5, scale_factor=2, mode="nearest")
-        p3 = backbone_feats["c3"] + F.interpolate(p4, scale_factor=2, mode="nearest")
+        p5 = self.lateral_c5(backbone_feats["c5"])
+        p4 = self.lateral_c4(backbone_feats["c4"]) + F.interpolate(p5, scale_factor=2, mode="nearest")
+        p3 = self.lateral_c3(backbone_feats["c3"]) + F.interpolate(p4, scale_factor=2, mode="nearest")
 
         # Apply output 3x3 convolutions to obtain final FPN features
         fpn_feats["p3"] = self.output_p3(p3)
@@ -129,10 +127,10 @@ class DetectorBackboneWithFPN(nn.Module):
         fpn_feats["p5"] = self.output_p5(p5)
         # You can also apply additional operations to FPN levels as needed
         # For example, if you want to applyReLU  activation:
-        fpn_feats["p3"] = F.relu(fpn_feats["p3"])
-        fpn_feats["p4"] = F.relu(fpn_feats["p4"])
-        fpn_feats["p5"] = F.relu(fpn_feats["p5"])
-        ######################################################################
+        # fpn_feats["p3"] = F.relu(fpn_feats["p3"])
+        # fpn_feats["p4"] = F.relu(fpn_feats["p4"])
+        # fpn_feats["p5"] = F.relu(fpn_feats["p5"])
+        # ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
 
