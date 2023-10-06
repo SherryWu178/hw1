@@ -285,6 +285,83 @@ class FCOS(nn.Module):
         # STUDENTS: See its use in `forward` when you implement losses.
         self._normalizer = 150  # per image
 
+def iou_loss(pred, target, indicator, lambda_reg=1.0):
+    """
+    Calculate the IOU (Intersection over Union) loss.
+
+    Args:
+        pred (torch.Tensor): Predicted bounding box deltas.
+        target (torch.Tensor): Target bounding box deltas.
+        indicator (torch.Tensor): Indicator function (1 if c* > 0, else 0).
+        lambda_reg (float): Balance weight for IOU loss.
+
+    Returns:
+        torch.Tensor: IOU loss.
+    """
+    # Calculate IOU values
+    ious = calculate_iou(pred, target)
+
+    # IOU loss
+    loss_iou = -torch.log(ious.clamp(min=1e-6))  # Add a small epsilon for numerical stability
+
+    # Apply indicator function
+    loss_iou *= indicator.float()
+
+    # Sum and scale the loss
+    loss_iou = loss_iou.sum() / (indicator.sum() + 1e-6)  # Add a small epsilon to avoid division by zero
+
+    return lambda_reg * loss_iou
+
+    def calculate_iou(boxes1, boxes2):
+        """
+        Calculate the IOU (Intersection over Union) between two sets of boxes.
+
+        Args:
+            boxes1 (torch.Tensor): Set of boxes in format [x1, y1, x2, y2].
+            boxes2 (torch.Tensor): Set of boxes in format [x1, y1, x2, y2].
+
+        Returns:
+            torch.Tensor: IOU values for each pair of boxes.
+        """
+        # Calculate intersection coordinates
+        intersection_x1 = torch.max(boxes1[:, 0], boxes2[:, 0])
+        intersection_y1 = torch.max(boxes1[:, 1], boxes2[:, 1])
+        intersection_x2 = torch.min(boxes1[:, 2], boxes2[:, 2])
+        intersection_y2 = torch.min(boxes1[:, 3], boxes2[:, 3])
+
+        # Calculate intersection area
+        intersection_area = torch.clamp(intersection_x2 - intersection_x1, min=0) * torch.clamp(intersection_y2 - intersection_y1, min=0)
+
+        # Calculate areas of boxes
+        area1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])
+        area2 = (boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])
+
+        # Calculate union area
+        union_area = area1 + area2 - intersection_area
+
+        # Calculate IOU
+        iou = intersection_area / (union_area + 1e-6)  # Add a small epsilon for numerical stability
+
+        return iou
+
+    def focal_loss(logits, targets, alpha=0.25, gamma=2.0):
+        """
+        Calculate the Focal Loss for binary classification.
+
+        Args:
+            logits (torch.Tensor): Predicted logits.
+            targets (torch.Tensor): Target labels (0 or 1).
+            alpha (float): Focal loss alpha parameter.
+            gamma (float): Focal loss gamma parameter.
+
+        Returns:
+            torch.Tensor: Focal loss.
+        """
+        ce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = alpha * (1 - pt) ** gamma * ce_loss
+        return focal_loss.mean()
+
     def forward(
         self,
         images: torch.Tensor,
@@ -397,7 +474,27 @@ class FCOS(nn.Module):
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
         loss_cls, loss_box, loss_ctr = None, None, None
+        # Calculate classification loss using focal loss
+        loss_cls = focal_loss(
+            pred_cls_logits,
+            matched_gt_boxes[:, :, 4] > 0,  # Indicator function (1 if c* > 0, else 0)
+            alpha=0.25,
+            gamma=2.0
+        ).sum()
 
+        # Calculate box regression loss using IOU loss
+        loss_box = iou_loss(
+            pred_boxreg_deltas,
+            matched_gt_deltas,
+            matched_gt_boxes[:, :, 4] > 0,  # Indicator function (1 if c* > 0, else 0)
+            lambda_reg=1.0  # Lambda is 1 as mentioned in the paper
+        ).sum()
+
+        # Calculate centerness loss using binary cross-entropy loss
+        loss_ctr = F.binary_cross_entropy_with_logits(
+            pred_ctr_logits,
+            (matched_gt_boxes[:, :, 4] > 0).float()  # Indicator function (1 if c* > 0, else 0)
+        ).sum()
 
         ######################################################################
         #                            END OF YOUR CODE                        #
@@ -494,19 +591,30 @@ class FCOS(nn.Module):
             )
             # Step 1:
             # Replace "pass" statement with your code
-            pass
+            most_confident_value = tensor.max(level_pred_scores, dim = 1)
+            most_confident_cls = tensor.argmax(level_pred_scores, dim = 1)
             
             # Step 2:
             # Replace "pass" statement with your code
-            pass
+            mask = torch.nonzero(most_confident_value > test_score_thresh)
+            
+            level_pred_classes = most_confident_cls[mask]
+            level_pred_classes[level_pred_classes == 0] = -1
+            
+            level_pred_scores = most_confident_value[mask]
+            
+            level_pred_boxes = level_pred_boxes[mask]
+
 
             # Step 3:
             # Replace "pass" statement with your code
-            pass
+            level_pred_boxes = fcos_apply_deltas_to_locations(level_deltas, level_locations)
 
             # Step 4: Use `images` to get (height, width) for clipping.
             # Replace "pass" statement with your code
-            pass
+            height, width = images.shape
+            level_pred_boxes[:, 0::2].clamp_(min=0, max=width)
+            level_pred_boxes[:, 1::2].clamp_(min=0, max=height)
 
             ##################################################################
             #                          END OF YOUR CODE                      #
