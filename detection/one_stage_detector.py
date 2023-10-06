@@ -276,9 +276,7 @@ class FCOS(nn.Module):
         ######################################################################
         # Feel free to delete these two lines: (but keep variable names same)
         self.backbone = DetectorBackboneWithFPN(fpn_channels)
-        self.pred_net = None
-        # Replace "pass" statement with your code
-        pass
+        self.pred_net = FCOSPredictionNetwork(num_classes, fpn_channels, stem_channels)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -320,8 +318,8 @@ class FCOS(nn.Module):
         # logits, deltas, and centerness.                                    #
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        backbone_feats = None
-        pred_cls_logits, pred_boxreg_deltas, pred_ctr_logits = None, None, None
+        backbone_feats = self.backbone(images)
+        pred_cls_logits, pred_boxreg_deltas, pred_ctr_logits = self.pred_net(backbone_feats)
 
         ######################################################################
         # TODO: Get absolute co-ordinates `(xc, yc)` for every location in
@@ -331,7 +329,8 @@ class FCOS(nn.Module):
         # call the functions properly.
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        locations_per_fpn_level = None
+        locations_per_fpn_level = get_fpn_location_coords(backbone_feats, 
+            {"p3": 8, "p4": 16, "p5": 32})
 
         ######################################################################
         #                           END OF YOUR CODE                         #
