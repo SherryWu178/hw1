@@ -60,9 +60,11 @@ def fcos_match_locations_to_gt(
 
         # Get stride for this FPN level.
         stride = strides_per_fpn_level[level_name]
-
         x, y = centers.unsqueeze(dim=2).unbind(dim=1)
-        x0, y0, x1, y1 = gt_boxes[:, :4].unsqueeze(dim=0).unbind(dim=2)
+        x0, y0, x1, y1 = gt_boxes[:, :4].cpu().unsqueeze(dim=0).unbind(dim=2)
+
+        print(x.device) 
+        print(x0.device) 
         pairwise_dist = torch.stack([x - x0, y - y0, x1 - x, y1 - y], dim=2)
 
         # Pairwise distance between every feature center and GT box edges:
