@@ -459,11 +459,21 @@ class FCOS(nn.Module):
         loss_cls, loss_box, loss_ctr = None, None, None
         
         # Calculate classification loss using focal loss
-        loss_cls = focal_loss(
-            pred_cls_logits,
-            matched_gt_boxes[:, :, 4] > 0,  # Indicator function (1 if c* > 0, else 0)
-            alpha=0.25,
-            gamma=2.0
+        print("matched_gt_boxes", matched_gt_boxes.shape)
+        print("pred_cls_logits", pred_cls_logits.shape)
+        
+        # Extract the shape of the input tensor
+        batch_size, num_locations, _ = matched_gt_boxes.size()
+        # Get the values of [:, :, 4] and clamp them between 0 and 19
+        values = torch.clamp(matched_gt_boxes[:, :, 4], 0, 19).cuda()
+
+        # Create a one-hot tensor for the values
+        one_hot = torch.zeros(batch_size, num_locations, 20).cuda()
+        target_cls_logits = one_hot.scatter_(2, values.unsqueeze(-1), 1)
+
+        loss_cls = self.focal_loss(
+            pred_cls_logits.cuda(),
+            target_cls_logits.cuda() 
         ).sum()
 
         loss_box = 0.25 * F.l1_loss(matched_gt_deltas, pred_boxreg_deltas, reduction="none")
