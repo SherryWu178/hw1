@@ -146,13 +146,12 @@ def fcos_get_deltas_from_locations(
         if gt_boxes.shape[1] == 5 and gt_box[4] == -1:
             deltas[index] = torch.tensor([-1, -1, -1, -1])
         else:
-            deltas[index] = torch.tensor([gt_box[0] - location[0], gt_box[1] 
-                - location[1], gt_box[2] - location[0], gt_box[3] - location[1]]) / stride
+            deltas[index] = torch.tensor([location[0] - gt_box[0], location[1] - gt_box[1] 
+                , gt_box[2] - location[0], gt_box[3] - location[1]]) / stride
 
     ##########################################################################
     #                             END OF YOUR CODE                           #
     ##########################################################################
-    print("deltas", deltas)
     return deltas
 
 
@@ -196,9 +195,8 @@ def fcos_apply_deltas_to_locations(
         if delta[0] == -1 and delta[1] == -1 and delta[2] == -1 and delta[3] == -1:
             output_boxes[index] = torch.tensor([location[0], location[1],location[0], location[1]]) 
         else:
-            output_boxes[index] = torch.tensor([delta[0]* stride + location[0], delta[1] * stride
-                + location[1], delta[2] * stride+ location[0], delta[3]* stride + location[1]]) 
-    print('output_boxes', output_boxes)
+            output_boxes[index] = torch.tensor([location[0] - delta[0] * stride, location[1] - delta[1] * stride,
+                 delta[2] * stride + location[0], delta[3]* stride + location[1]]) 
     ##########################################################################
     #                             END OF YOUR CODE                           
     ##########################################################################
@@ -281,6 +279,7 @@ def get_fpn_location_coords(
         ##################################################################–####
         # TODO: Implement logic to get location co-ordinates below.          #
         ######################################################################
+        print("feat_shape", feat_shape)
         B, C, H, W = feat_shape
         # Calculate the coordinates for this FPN level
         x_coords = torch.arange(level_stride/2 , W * level_stride + level_stride/2 , level_stride, dtype=dtype, device=device)

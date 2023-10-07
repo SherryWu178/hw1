@@ -98,8 +98,6 @@ class TestDetectorBackboneWithFPN(unittest.TestCase):
         if _deltas is None:
             self.skipTest("fcos_get_deltas_from_test is not implemented.")
         output_boxes = fcos_apply_deltas_to_locations(_deltas, input_locations, stride=8)
-        print(_deltas)
-        print(output_boxes)
         box_error = rel_error(input_boxes[:, :4], output_boxes)
         self.assertEqual(box_error, 0.0)
 

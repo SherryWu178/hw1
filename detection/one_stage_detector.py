@@ -285,64 +285,6 @@ class FCOS(nn.Module):
         # STUDENTS: See its use in `forward` when you implement losses.
         self._normalizer = 150  # per image
 
-def iou_loss(pred, target, indicator, lambda_reg=1.0):
-    """
-    Calculate the IOU (Intersection over Union) loss.
-
-    Args:
-        pred (torch.Tensor): Predicted bounding box deltas.
-        target (torch.Tensor): Target bounding box deltas.
-        indicator (torch.Tensor): Indicator function (1 if c* > 0, else 0).
-        lambda_reg (float): Balance weight for IOU loss.
-
-    Returns:
-        torch.Tensor: IOU loss.
-    """
-    # Calculate IOU values
-    ious = calculate_iou(pred, target)
-
-    # IOU loss
-    loss_iou = -torch.log(ious.clamp(min=1e-6))  # Add a small epsilon for numerical stability
-
-    # Apply indicator function
-    loss_iou *= indicator.float()
-
-    # Sum and scale the loss
-    loss_iou = loss_iou.sum() / (indicator.sum() + 1e-6)  # Add a small epsilon to avoid division by zero
-
-    return lambda_reg * loss_iou
-
-    def calculate_iou(boxes1, boxes2):
-        """
-        Calculate the IOU (Intersection over Union) between two sets of boxes.
-
-        Args:
-            boxes1 (torch.Tensor): Set of boxes in format [x1, y1, x2, y2].
-            boxes2 (torch.Tensor): Set of boxes in format [x1, y1, x2, y2].
-
-        Returns:
-            torch.Tensor: IOU values for each pair of boxes.
-        """
-        # Calculate intersection coordinates
-        intersection_x1 = torch.max(boxes1[:, 0], boxes2[:, 0])
-        intersection_y1 = torch.max(boxes1[:, 1], boxes2[:, 1])
-        intersection_x2 = torch.min(boxes1[:, 2], boxes2[:, 2])
-        intersection_y2 = torch.min(boxes1[:, 3], boxes2[:, 3])
-
-        # Calculate intersection area
-        intersection_area = torch.clamp(intersection_x2 - intersection_x1, min=0) * torch.clamp(intersection_y2 - intersection_y1, min=0)
-
-        # Calculate areas of boxes
-        area1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])
-        area2 = (boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])
-
-        # Calculate union area
-        union_area = area1 + area2 - intersection_area
-
-        # Calculate IOU
-        iou = intersection_area / (union_area + 1e-6)  # Add a small epsilon for numerical stability
-
-        return iou
 
     def focal_loss(logits, targets, alpha=0.25, gamma=2.0):
         """
@@ -406,8 +348,9 @@ def iou_loss(pred, target, indicator, lambda_reg=1.0):
         # call the functions properly.
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        locations_per_fpn_level = get_fpn_location_coords(backbone_feats, 
-            {"p3": 8, "p4": 16, "p5": 32})
+        strides_per_fpn_level = {"p3": 8, "p4": 16, "p5": 32}
+        locations_per_fpn_level = get_fpn_location_coords(backbone_feats["p3"].shape, 
+            strides_per_fpn_level)
 
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -432,18 +375,22 @@ def iou_loss(pred, target, indicator, lambda_reg=1.0):
         ######################################################################
         # List of dictionaries with keys {"p3", "p4", "p5"} giving matched
         # boxes for locations per FPN level, per image. Fill this list:
-        B = gt_boxes.shape[0]
-        for i in range(B):
-            gt_box = gt_boxes[i, :, :]
-            matched_gt_boxes[i] = fcos_match_locations_to_gt(gt_box, locations_per_fpn_level)
 
 
         # Calculate GT deltas for these matched boxes. Similar structure
         # as `matched_gt_boxes` above. Fill this list:
-        # Replace "pass" statement with your code
+        B = gt_boxes.shape[0]
+
+        matched_gt_boxes = [0] * B
+        matched_gt_deltas = [0] * B
+        matched_gt_ctr = [0] * B
+
         for i in range(B):
             gt_box = gt_boxes[i, :, :]
+            matched_gt_boxes[i] = fcos_match_locations_to_gt(gt_box, strides_per_fpn_level, locations_per_fpn_level)
             matched_gt_deltas[i] = fcos_get_deltas_from_locations(gt_box, locations_per_fpn_level)
+            matched_gt_ctr[i] = fcos_make_centerness_targets(matched_gt_deltas[i])
+            
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -458,6 +405,7 @@ def iou_loss(pred, target, indicator, lambda_reg=1.0):
         # shape: (batch_size, num_locations_across_fpn_levels, ...)
         matched_gt_boxes = self._cat_across_fpn_levels(matched_gt_boxes)
         matched_gt_deltas = self._cat_across_fpn_levels(matched_gt_deltas)
+        matched_gt_ctr = self._cat_across_fpn_levels(matched_gt_ctr)
         pred_cls_logits = self._cat_across_fpn_levels(pred_cls_logits)
         pred_boxreg_deltas = self._cat_across_fpn_levels(pred_boxreg_deltas)
         pred_ctr_logits = self._cat_across_fpn_levels(pred_ctr_logits)
@@ -474,6 +422,7 @@ def iou_loss(pred, target, indicator, lambda_reg=1.0):
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
         loss_cls, loss_box, loss_ctr = None, None, None
+        
         # Calculate classification loss using focal loss
         loss_cls = focal_loss(
             pred_cls_logits,
@@ -482,19 +431,20 @@ def iou_loss(pred, target, indicator, lambda_reg=1.0):
             gamma=2.0
         ).sum()
 
-        # Calculate box regression loss using IOU loss
-        loss_box = iou_loss(
-            pred_boxreg_deltas,
-            matched_gt_deltas,
-            matched_gt_boxes[:, :, 4] > 0,  # Indicator function (1 if c* > 0, else 0)
-            lambda_reg=1.0  # Lambda is 1 as mentioned in the paper
-        ).sum()
+        loss_box = 0.25 * F.l1_loss(matched_gt_deltas, pred_boxreg_deltas, reduction="none")
+        loss_box[matched_gt_deltas < 0] *= 0.0
 
         # Calculate centerness loss using binary cross-entropy loss
         loss_ctr = F.binary_cross_entropy_with_logits(
             pred_ctr_logits,
             (matched_gt_boxes[:, :, 4] > 0).float()  # Indicator function (1 if c* > 0, else 0)
         ).sum()
+
+        return {
+            "loss_cls": 2,
+            "loss_box": 1,
+            "loss_ctr": 2.3,
+        }
 
         ######################################################################
         #                            END OF YOUR CODE                        #
