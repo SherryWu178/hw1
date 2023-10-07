@@ -348,12 +348,11 @@ class FCOS(nn.Module):
         # call the functions properly.
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        device = "cuda:0"
         strides_per_fpn_level = {"p3": 8, "p4": 16, "p5": 32}
         shape_per_fpn_level = {
-                "p3": torch.tensor(backbone_feats["p3"].shape).to(device),
-                "p4": torch.tensor(backbone_feats["p4"].shape).to(device),
-                "p5": torch.tensor(backbone_feats["p5"].shape).to(device)
+                "p3": torch.tensor(backbone_feats["p3"].shape).cuda(),
+                "p4": torch.tensor(backbone_feats["p4"].shape).cuda(),
+                "p5": torch.tensor(backbone_feats["p5"].shape).cuda()
             }
         locations_per_fpn_level = get_fpn_location_coords(shape_per_fpn_level, 
             strides_per_fpn_level)
@@ -388,14 +387,15 @@ class FCOS(nn.Module):
         B = gt_boxes.shape[0]
 
         matched_gt_boxes = [0] * B
-        matched_gt_deltas = [0] * B
-        matched_gt_ctr = [0] * B
+        matched_gt_deltas = [{}] * B
+        matched_gt_ctr = [{}] * B
 
         for i in range(B):
             gt_box = gt_boxes[i, :, :]
             matched_gt_boxes[i] = fcos_match_locations_to_gt(locations_per_fpn_level, strides_per_fpn_level,  gt_box)
-            matched_gt_deltas[i] = fcos_get_deltas_from_locations(locations_per_fpn_level, strides_per_fpn_level,  gt_box)
-            matched_gt_ctr[i] = fcos_make_centerness_targets(matched_gt_deltas[i])
+            for fpn_level, locations_at_the_level in locations_per_fpn_level.items():
+                matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(locations_at_the_level, strides_per_fpn_level,  gt_box)
+                matched_gt_ctr[i] = fcos_make_centerness_targets(matched_gt_deltas[i][fpn_level])
             
         ######################################################################
         #                           END OF YOUR CODE                         #
