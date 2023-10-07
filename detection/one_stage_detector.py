@@ -176,10 +176,25 @@ class FCOSPredictionNetwork(nn.Module):
         # at every location in feature map, we shouldn't "lose" any locations.
         ######################################################################
         # Fill these.
-        stem_cls = []
-        stem_box = []
-        # Replace "pass" statement with your code
-        pass
+        self.num_classes = num_classes
+        print(stem_channels)
+        stem_cls = [nn.Conv2d(in_channels, stem_channels[0], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
+                        nn.ReLU(inplace=True)]
+        stem_box = [nn.Conv2d(in_channels, stem_channels[1], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
+                        nn.ReLU(inplace=True)]
+
 
         # Wrap the layers defined by student into a `nn.Sequential` module:
         self.stem_cls = nn.Sequential(*stem_cls)
@@ -201,9 +216,9 @@ class FCOSPredictionNetwork(nn.Module):
         ######################################################################
 
         # Replace these lines with your code, keep variable names unchanged.
-        self.pred_cls = None  # Class prediction conv
-        self.pred_box = None  # Box regression conv
-        self.pred_ctr = None  # Centerness conv
+        self.pred_cls = nn.Conv2d(in_channels, num_classes, 3, padding=1) # Class prediction conv
+        self.pred_box = nn.Conv2d(in_channels, 4, 3, padding=1) # Box regression conv
+        self.pred_ctr = nn.Conv2d(in_channels, 1, 3, padding=1) # Centerness conv
 
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -250,6 +265,17 @@ class FCOSPredictionNetwork(nn.Module):
         class_logits = {}
         boxreg_deltas = {}
         centerness_logits = {}
+
+        for level_name, feats in feats_per_fpn_level.items():
+            # Apply stem layers
+            cls_feats = self.stem_cls(feats)
+            box_feats = self.stem_box(feats)
+
+            # Predictions
+            class_logits[level_name] = self.pred_cls(cls_feats).permute(0, 2, 3, 1).contiguous().view(feats.size(0), -1, self.num_classes)
+            boxreg_deltas[level_name] = self.pred_box(box_feats).permute(0, 2, 3, 1).contiguous().view(feats.size(0), -1, 4)
+            centerness_logits[level_name] = self.pred_ctr(box_feats).permute(0, 2, 3, 1).contiguous().view(feats.size(0), -1, 1)
+
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
