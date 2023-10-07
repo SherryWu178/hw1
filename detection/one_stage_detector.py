@@ -388,14 +388,18 @@ class FCOS(nn.Module):
 
         matched_gt_boxes = [0] * B
         matched_gt_deltas = [{}] * B
-        matched_gt_ctr = [{}] * B
 
+        begin = 0
+        end = 0
         for i in range(B):
             gt_box = gt_boxes[i, :, :]
+            N, _ = gt_box.shape
             matched_gt_boxes[i] = fcos_match_locations_to_gt(locations_per_fpn_level, strides_per_fpn_level,  gt_box)
+            end = end + N
             for fpn_level, locations_at_the_level in locations_per_fpn_level.items():
-                matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(locations_at_the_level, strides_per_fpn_level,  gt_box)
-                matched_gt_ctr[i] = fcos_make_centerness_targets(matched_gt_deltas[i][fpn_level])
+                batch_location = locations_at_the_level[begin:end,:]
+                matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(batch_location, gt_box, strides_per_fpn_level[fpn_level])
+            begin = end
             
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -411,7 +415,6 @@ class FCOS(nn.Module):
         # shape: (batch_size, num_locations_across_fpn_levels, ...)
         matched_gt_boxes = self._cat_across_fpn_levels(matched_gt_boxes)
         matched_gt_deltas = self._cat_across_fpn_levels(matched_gt_deltas)
-        matched_gt_ctr = self._cat_across_fpn_levels(matched_gt_ctr)
         pred_cls_logits = self._cat_across_fpn_levels(pred_cls_logits)
         pred_boxreg_deltas = self._cat_across_fpn_levels(pred_boxreg_deltas)
         pred_ctr_logits = self._cat_across_fpn_levels(pred_ctr_logits)

@@ -63,8 +63,6 @@ def fcos_match_locations_to_gt(
         x, y = centers.cuda().unsqueeze(dim=2).unbind(dim=1)
         x0, y0, x1, y1 = gt_boxes[:, :4].unsqueeze(dim=0).unbind(dim=2)
 
-        print(x.device) 
-        print(x0.device) 
         pairwise_dist = torch.stack([x - x0, y - y0, x1 - x, y1 - y], dim=2)
 
         # Pairwise distance between every feature center and GT box edges:
@@ -142,9 +140,12 @@ def fcos_get_deltas_from_locations(
     # Set this to Tensor of shape (N, 4) giving deltas (left, top, right, bottom)
     # from the locations to GT box edges, normalized by FPN stride.
     N, _ = locations.shape
+    print("locations",locations.shape)
+    print("gt_boxes",gt_boxes.shape)
     deltas = torch.empty(N, 4)
     for index, location in enumerate(locations):
-        gt_box = gt_boxes[index]
+        gt_box = gt_boxes[index,:]
+        
         if gt_boxes.shape[1] == 5 and gt_box[4] == -1:
             deltas[index] = torch.tensor([-1, -1, -1, -1])
         else:
