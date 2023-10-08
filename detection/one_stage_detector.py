@@ -464,12 +464,13 @@ class FCOS(nn.Module):
         
         # Extract the shape of the input tensor
         batch_size, num_locations, _ = matched_gt_boxes.size()
-        # Get the values of [:, :, 4] and clamp them between 0 and 19
-        values = torch.clamp(matched_gt_boxes[:, :, 4], 0, 19).cuda()
 
         # Create a one-hot tensor for the values
-        one_hot = torch.zeros(batch_size, num_locations, 20).cuda()
-        target_cls_logits = one_hot.scatter_(2, values.unsqueeze(-1), 1)
+        target_cls_logits = torch.zeros(batch_size, num_locations, 20).cuda()
+        for i in range(batch_size):
+            for j in range(num_locations):
+                if matched_gt_boxes[i][j][4] == -1:
+                    target_cls_logits[i][j][int(matched_gt_boxes[i][j][4])] = 1
 
         loss_cls = self.focal_loss(
             pred_cls_logits.cuda(),

@@ -140,8 +140,6 @@ def fcos_get_deltas_from_locations(
     # Set this to Tensor of shape (N, 4) giving deltas (left, top, right, bottom)
     # from the locations to GT box edges, normalized by FPN stride.
     N, _ = locations.shape
-    print("locations",locations.shape)
-    print("gt_boxes",gt_boxes.shape)
     deltas = torch.empty(N, 4)
     for index, location in enumerate(locations):
         gt_box = gt_boxes[index,:]
