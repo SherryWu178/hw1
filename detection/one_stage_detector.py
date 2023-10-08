@@ -472,14 +472,24 @@ class FCOS(nn.Module):
                 if matched_gt_boxes[i][j][4] == -1:
                     target_cls_logits[i][j][int(matched_gt_boxes[i][j][4])] = 1
 
-        loss_cls = self.focal_loss(
-            pred_cls_logits.cuda(),
-            target_cls_logits.cuda() 
-        ).sum()
+        print("pred_cls_logits",pred_cls_logits.shape)
+        print("target_cls_logits", target_cls_logits.shape)
+
+        loss_cls = F.binary_cross_entropy_with_logits(pred_cls_logits, target_cls_logits, reduction='none')
+
+        # loss_cls = self.focal_loss(
+        #     pred_cls_logits.cuda(),
+        #     target_cls_logits.cuda() 
+        # ).sum()
+        
+        print("matched_gt_deltas",matched_gt_deltas.shape)
+        print("pred_boxreg_deltas", pred_boxreg_deltas.shape)
 
         loss_box = 0.25 * F.l1_loss(matched_gt_deltas, pred_boxreg_deltas, reduction="none")
         loss_box[matched_gt_deltas < 0] *= 0.0
 
+        print("pred_ctr_logits", pred_ctr_logits.shape)
+        print("matched_gt_boxes", matched_gt_boxes.shape)
         # Calculate centerness loss using binary cross-entropy loss
         loss_ctr = F.binary_cross_entropy_with_logits(
             pred_ctr_logits,
