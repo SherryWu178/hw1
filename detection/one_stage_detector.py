@@ -413,7 +413,8 @@ class FCOS(nn.Module):
         B = gt_boxes.shape[0]
 
         matched_gt_boxes = [0] * B
-        matched_gt_deltas = [{}] * B
+        matched_gt_deltas = [ {} for _ in range(B)]
+        matched_gt_ctr = [ {} for _ in range(B)]
 
         begin = 0
         end = 0
@@ -423,10 +424,11 @@ class FCOS(nn.Module):
             matched_gt_boxes[i] = fcos_match_locations_to_gt(locations_per_fpn_level, strides_per_fpn_level,  gt_box)
             end = end + N
             for fpn_level, locations_at_the_level in locations_per_fpn_level.items():
-                batch_location = locations_at_the_level[begin:end,:]
-                matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(batch_location, gt_box, strides_per_fpn_level[fpn_level])
+                matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(locations_per_fpn_level[fpn_level], matched_gt_boxes[i][fpn_level], strides_per_fpn_level[fpn_level])
+                matched_gt_ctr[i][fpn_level] = fcos_make_centerness_targets(matched_gt_deltas[i][fpn_level])
+
             begin = end
-            
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -436,11 +438,15 @@ class FCOS(nn.Module):
         # tensors of shape (batch_size, locations_per_fpn_level, 5 or 4)
         matched_gt_boxes = default_collate(matched_gt_boxes)
         matched_gt_deltas = default_collate(matched_gt_deltas)
+        matched_gt_ctr = default_collate(matched_gt_ctr)
 
+        
         # Combine predictions and GT from across all FPN levels.
         # shape: (batch_size, num_locations_across_fpn_levels, ...)
         matched_gt_boxes = self._cat_across_fpn_levels(matched_gt_boxes)
         matched_gt_deltas = self._cat_across_fpn_levels(matched_gt_deltas)
+        matched_gt_ctr = self._cat_across_fpn_levels(matched_gt_ctr)
+
         pred_cls_logits = self._cat_across_fpn_levels(pred_cls_logits)
         pred_boxreg_deltas = self._cat_across_fpn_levels(pred_boxreg_deltas)
         pred_ctr_logits = self._cat_across_fpn_levels(pred_ctr_logits)
@@ -459,8 +465,8 @@ class FCOS(nn.Module):
         loss_cls, loss_box, loss_ctr = None, None, None
         
         # Calculate classification loss using focal loss
-        print("matched_gt_boxes", matched_gt_boxes.shape)
-        print("pred_cls_logits", pred_cls_logits.shape)
+        # print("matched_gt_boxes", matched_gt_boxes.shape)
+        # print("pred_cls_logits", pred_cls_logits.shape)
         
         # Extract the shape of the input tensor
         batch_size, num_locations, _ = matched_gt_boxes.size()
@@ -472,8 +478,8 @@ class FCOS(nn.Module):
                 if matched_gt_boxes[i][j][4] == -1:
                     target_cls_logits[i][j][int(matched_gt_boxes[i][j][4])] = 1
 
-        print("pred_cls_logits",pred_cls_logits.shape)
-        print("target_cls_logits", target_cls_logits.shape)
+        # print("pred_cls_logits",pred_cls_logits.shape)
+        # print("target_cls_logits", target_cls_logits.shape)
 
         loss_cls = F.binary_cross_entropy_with_logits(pred_cls_logits, target_cls_logits, reduction='none')
 
@@ -482,25 +488,24 @@ class FCOS(nn.Module):
         #     target_cls_logits.cuda() 
         # ).sum()
         
-        print("matched_gt_deltas",matched_gt_deltas.shape)
-        print("pred_boxreg_deltas", pred_boxreg_deltas.shape)
+        # print("matched_gt_deltas",matched_gt_deltas.shape)
+        # print("pred_boxreg_deltas", pred_boxreg_deltas.shape)
 
-        loss_box = 0.25 * F.l1_loss(matched_gt_deltas, pred_boxreg_deltas, reduction="none")
+        loss_box = 0.25 * F.l1_loss(pred_boxreg_deltas, matched_gt_deltas.cuda(), reduction="none")
         loss_box[matched_gt_deltas < 0] *= 0.0
 
-        print("pred_ctr_logits", pred_ctr_logits.shape)
-        print("matched_gt_boxes", matched_gt_boxes.shape)
+        # print("pred_ctr_logits", pred_ctr_logits.shape)
+        # print("matched_gt_boxes", matched_gt_boxes.shape)
+        
         # Calculate centerness loss using binary cross-entropy loss
+        a, b = matched_gt_ctr.shape
+        # print(pred_ctr_logits.shape, matched_gt_ctr.squeeze().cuda().shape)
         loss_ctr = F.binary_cross_entropy_with_logits(
             pred_ctr_logits,
-            (matched_gt_boxes[:, :, 4] > 0).float()  # Indicator function (1 if c* > 0, else 0)
+            matched_gt_ctr.reshape((a, b, 1)).cuda()
         ).sum()
 
-        return {
-            "loss_cls": 2,
-            "loss_box": 1,
-            "loss_ctr": 2.3,
-        }
+
 
         ######################################################################
         #                            END OF YOUR CODE                        #

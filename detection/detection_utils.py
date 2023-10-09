@@ -280,7 +280,6 @@ def get_fpn_location_coords(
         ##################################################################–####
         # TODO: Implement logic to get location co-ordinates below.          #
         ######################################################################
-        print("feat_shape", feat_shape)
         B, C, H, W = feat_shape
         # Calculate the coordinates for this FPN level
         x_coords = torch.arange(level_stride/2 , W * level_stride + level_stride/2 , level_stride, dtype=dtype, device=device)
