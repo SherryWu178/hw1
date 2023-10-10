@@ -224,9 +224,10 @@ def train_detector(
 
         # Ignore keys like "proposals" in RPN.
         losses = {k: v for k, v in losses.items() if "loss" in k}
-
+        
         optimizer.zero_grad()
         total_loss = sum(losses.values())
+        writer.add_scalar("Loss/train", total_loss.item(), _iter)
         total_loss.backward()
         optimizer.step()
         lr_scheduler.step()
