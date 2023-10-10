@@ -145,14 +145,14 @@ def main(args):
             lr=8e-3,
             max_iters=9000,
             log_period=100,
-            batch_size=32,
+            batch_size=64,
             num_workers=4
         )
     
     detector = FCOS(
         num_classes=NUM_CLASSES,
-        fpn_channels=64,
-        stem_channels=[64, 64],
+        fpn_channels=128,
+        stem_channels=[128, 128],
     )
 
     if args.visualize_gt:
