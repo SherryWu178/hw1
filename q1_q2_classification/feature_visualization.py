@@ -13,7 +13,7 @@ from sklearn.decomposition import PCA
 from skimage.color import rgb2lab, deltaE_cie76
 from collections import defaultdict
 
-PATH = "checkpoint-model-epoch50.pth"
+PATH = "checkpoint-model-epoch1.pth"
 
 def load_model(filename):
     return torch.load(filename)
@@ -34,8 +34,9 @@ def visualize(args, model, test_loader):
 
     # Create a DataLoader for the selected samples
     selected_test_loader = DataLoader(subset, batch_size=test_loader.batch_size, shuffle=True)
-
-    model = load_model(PATH)
+    
+    model = ResNet(20)
+    model.load_state_dict(torch.load(PATH))
     finetuned_model = model.resnet
     features = extract_features(finetuned_model, args.device, selected_test_loader)
 
@@ -58,7 +59,7 @@ def extract_features(model, device, test_loader):
         gt_classes = []
         for data, target, wgt in test_loader:
             data = data.to(device)
-            output = model(data)
+            output = model(data.cpu())
             test_features.append(output.cpu().numpy().ravel())
             gt_classes.append(target.cpu().numpy())
 

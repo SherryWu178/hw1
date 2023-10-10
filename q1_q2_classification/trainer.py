@@ -19,7 +19,7 @@ def save_model(epoch, model_name, model):
     filename = 'checkpoint-{}-epoch{}.pth'.format(
         model_name, epoch+1)
     print("saving model at ", filename)
-    torch.save(model, filename)
+    torch.save(model.state_dict(), filename)
 
 def custom_multi_label_loss(output, target, wgt):
     """

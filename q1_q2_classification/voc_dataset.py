@@ -32,9 +32,7 @@ class VOCDataset(Dataset):
         split_file = os.path.join(data_dir, 'ImageSets/Main', split + '.txt')
         with open(split_file) as fp:
             self.index_list = [line.strip() for line in fp]
-        print("bf anno")
         self.anno_list = self.preload_anno()
-        print("af anno")
 
     @classmethod
     def get_class_name(cls, index):
