@@ -325,10 +325,8 @@ class FCOS(nn.Module):
         Returns:
             torch.Tensor: Focal loss.
         """
-        ce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
-        pt = torch.exp(-ce_loss)
-        focal_loss = alpha * (1 - pt) ** gamma * ce_loss
-        return focal_loss.mean()
+        ce_loss = F.sigmoid_focal_loss(logits, targets, reduction='none')
+        return ce_loss
 
     def forward(
         self,
@@ -481,7 +479,8 @@ class FCOS(nn.Module):
         # print("pred_cls_logits",pred_cls_logits.shape)
         # print("target_cls_logits", target_cls_logits.shape)
 
-        loss_cls = F.binary_cross_entropy_with_logits(pred_cls_logits, target_cls_logits, reduction='none')
+        loss_cls = F.sigmoid_focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
+        # self.focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
 
         # loss_cls = self.focal_loss(
         #     pred_cls_logits.cuda(),
