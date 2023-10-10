@@ -11,6 +11,7 @@ from torch.utils.data._utils.collate import default_collate
 from torchvision.ops import sigmoid_focal_loss
 from torchvision import models
 from torchvision.models import feature_extraction
+from torchvision.ops import sigmoid_focal_loss
 
 
 class DetectorBackboneWithFPN(nn.Module):
@@ -479,7 +480,7 @@ class FCOS(nn.Module):
         # print("pred_cls_logits",pred_cls_logits.shape)
         # print("target_cls_logits", target_cls_logits.shape)
 
-        loss_cls = F.sigmoid_focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
+        loss_cls = sigmoid_focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
         # self.focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
 
         # loss_cls = self.focal_loss(

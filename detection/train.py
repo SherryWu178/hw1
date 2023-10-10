@@ -137,13 +137,18 @@ def main(args):
             max_iters=250,
             lr=5e-3,
             log_period=10,
+            batch_size=32,
+            num_workers=4
         )
     else:
         hyperparams = HyperParameters(
             lr=8e-3,
             max_iters=9000,
             log_period=100,
+            batch_size=32,
+            num_workers=4
         )
+    
     detector = FCOS(
         num_classes=NUM_CLASSES,
         fpn_channels=64,
