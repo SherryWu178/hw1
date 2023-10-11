@@ -105,8 +105,8 @@ class VOCDataset(Dataset):
         # Define a list of possible augmentations
         if self.split == "train":
             augmentations = [
-                # transforms.RandomHorizontalFlip(p=0.5),
-                # transforms.RandomVerticalFlip(p=0.5),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
                 transforms.CenterCrop(size=(self.size, self.size)),
                 # transforms.RandomRotation(degrees=(-45, 45)),
                 # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)

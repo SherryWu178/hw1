@@ -22,7 +22,7 @@ class ResNet(nn.Module):
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])
 
         for param in self.resnet.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
 
         
         # Define your own classification layer for the specific task
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # You should get a map of around 50 in 50 epochs
     ##################################################################
     args = ARGS(
-        epochs=2,
+        epochs=50,
         inp_size=224,
         use_cuda=True,
         val_every=70,
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         step_size=10,
         gamma=0.1,
         save_at_end=True,
-        save_freq =10,
+        save_freq=10,
     )
     ##################################################################
     #                          END OF YOUR CODE                      #
