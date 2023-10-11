@@ -72,7 +72,7 @@ if __name__ == "__main__":
         step_size=10,
         gamma=0.1,
         save_at_end=True,
-        save_freq =1,
+        save_freq =10,
     )
     ##################################################################
     #                          END OF YOUR CODE                      #
