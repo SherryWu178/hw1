@@ -108,7 +108,7 @@ class VOCDataset(Dataset):
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomVerticalFlip(p=0.5),
                 transforms.CenterCrop(size=(self.size, self.size)),
-                # transforms.RandomRotation(degrees=(-45, 45)),
+                transforms.RandomRotation(degrees=(-45, 45)),
                 # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)
             ]
         else:

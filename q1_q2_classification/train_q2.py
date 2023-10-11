@@ -22,7 +22,7 @@ class ResNet(nn.Module):
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])
 
         for param in self.resnet.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
 
         
         # Define your own classification layer for the specific task
