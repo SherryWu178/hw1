@@ -141,14 +141,18 @@ def fcos_get_deltas_from_locations(
     # from the locations to GT box edges, normalized by FPN stride.
     N, _ = locations.shape
     deltas = torch.empty(N, 4)
-    for index, location in enumerate(locations):
-        gt_box = gt_boxes[index,:]
-        
-        if gt_boxes.shape[1] == 5 and gt_box[4] == -1:
-            deltas[index] = torch.tensor([-1, -1, -1, -1])
-        else:
-            deltas[index] = torch.tensor([location[0] - gt_box[0], location[1] - gt_box[1] 
-                , gt_box[2] - location[0], gt_box[3] - location[1]]) / stride
+    # for index, location in enumerate(locations):
+    #     gt_box = gt_boxes[index,:]
+    #     if gt_boxes.shape[1] == 5 and gt_box[4] == -1:
+    #         deltas[index] = torch.tensor([-1, -1, -1, -1])
+    #     else:
+    #         deltas[index] = torch.tensor([location[0] - gt_box[0], location[1] - gt_box[1] 
+    #             , gt_box[2] - location[0], gt_box[3] - location[1]]) / stride
+
+    invalid_index = (gt_boxes[:, :5] == -1).all(dim = 1)
+    location_stack = torch.cat((locations, locations), dim=1)
+    deltas = torch.abs(gt_boxes[:, :4] - location_stack) / stride
+    deltas[invalid_index,:] = torch.tensor([-1,-1,-1,-1], dtype=deltas.dtype)
 
     ##########################################################################
     #                             END OF YOUR CODE                           #
@@ -191,13 +195,19 @@ def fcos_apply_deltas_to_locations(
     ##########################################################################
     N, _ = deltas.shape
     output_boxes = torch.empty(N, 4)
-    for index, delta in enumerate(deltas):
-        location = locations[index]
-        if delta[0] == -1 and delta[1] == -1 and delta[2] == -1 and delta[3] == -1:
-            output_boxes[index] = torch.tensor([location[0], location[1],location[0], location[1]]) 
-        else:
-            output_boxes[index] = torch.tensor([location[0] - delta[0] * stride, location[1] - delta[1] * stride,
-                 delta[2] * stride + location[0], delta[3]* stride + location[1]]) 
+
+    clipped_deltas = deltas.clamp(min=0)
+    clipped_deltas[:, :2] = -clipped_deltas[:, :2]
+    location_stack = torch.cat((locations, locations), dim=1)
+    output_boxes = location_stack + clipped_deltas * stride
+
+    # for index, delta in enumerate(deltas):
+    #     location = locations[index]
+    #     if delta[0] == -1 and delta[1] == -1 and delta[2] == -1 and delta[3] == -1:
+    #         output_boxes[index] = torch.tensor([location[0], location[1],location[0], location[1]]) 
+    #     else:
+    #         output_boxes[index] = torch.tensor([location[0] - delta[0] * stride, location[1] - delta[1] * stride,
+    #              delta[2] * stride + location[0], delta[3]* stride + location[1]]) 
     ##########################################################################
     #                             END OF YOUR CODE                           
     ##########################################################################
@@ -232,15 +242,19 @@ def fcos_make_centerness_targets(deltas: torch.Tensor):
     ##########################################################################
     N = deltas.shape[0]
     centerness = torch.zeros(N)
-    for i in range(N):
-        if deltas[i,0] == -1 and deltas[i,1] == -1 and deltas[i,2] == -1 and deltas[i,3] == -1:
-            centerness[i] = -1
-        else:
-            delta = deltas[i]
-            centerness[i] = torch.sqrt(torch.min(delta[0], delta[2]) * torch.min(delta[1],delta[3])/ (torch.max(delta[0],delta[2])* torch.max(delta[1],delta[3])))
+    # for i in range(N):
+    #     if deltas[i,0] == -1 and deltas[i,1] == -1 and deltas[i,2] == -1 and deltas[i,3] == -1:
+    #         centerness[i] = -1
+    #     else:
+    #         delta = deltas[i]
+    #         centerness[i] = torch.sqrt(torch.min(delta[0], delta[2]) * torch.min(delta[1],delta[3])/ (torch.max(delta[0],delta[2])* torch.max(delta[1],delta[3])))
     ##########################################################################
     #                             END OF YOUR CODE                           #
     ##########################################################################
+    invalid_index = (deltas == -1).all(dim = 1)
+    centerness = torch.sqrt(torch.min(deltas[:,0], deltas[:,2]) * torch.min(deltas[:,1],deltas[:,3]) 
+        / (torch.max(deltas[:,0], deltas[:,2]) * torch.max(deltas[:,1],deltas[:,3])))
+    centerness[invalid_index] = -1
 
     return centerness
 
@@ -248,7 +262,7 @@ def get_fpn_location_coords(
     shape_per_fpn_level: Dict[str, Tuple],
     strides_per_fpn_level: Dict[str, int],
     dtype: torch.dtype = torch.float32,
-    device: str = "cuda",
+    device: str = "cpu",
 ) -> Dict[str, torch.Tensor]:
     """
     Map every location in FPN feature map to a point on the image. This point
