@@ -151,8 +151,8 @@ def fcos_get_deltas_from_locations(
 
     invalid_index = (gt_boxes[:, :5] == -1).all(dim = 1)
     location_stack = torch.cat((locations, locations), dim=1)
-    deltas = torch.abs(gt_boxes[:, :4] - location_stack) / stride
-    deltas[invalid_index,:] = torch.tensor([-1,-1,-1,-1], dtype=deltas.dtype)
+    deltas = torch.abs(gt_boxes[:, :4].cuda() - location_stack.cuda()) / stride
+    deltas[invalid_index,:] = torch.tensor([-1,-1,-1,-1], dtype=deltas.dtype).cuda()
 
     ##########################################################################
     #                             END OF YOUR CODE                           #

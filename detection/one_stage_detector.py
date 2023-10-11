@@ -196,7 +196,6 @@ class FCOSPredictionNetwork(nn.Module):
                         nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
                         nn.ReLU(inplace=True)]
 
-
         # Wrap the layers defined by student into a `nn.Sequential` module:
         self.stem_cls = nn.Sequential(*stem_cls)
         self.stem_box = nn.Sequential(*stem_box)
