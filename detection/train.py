@@ -37,7 +37,7 @@ else:
     DEVICE = torch.device("cpu")
 
 NUM_CLASSES = 20
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 IMAGE_SHAPE = (224, 224)
 NUM_WORKERS = 12
 DATASET_PATH = "../data"
@@ -136,17 +136,13 @@ def main(args):
         hyperparams = HyperParameters(
             max_iters=250,
             lr=5e-3,
-            log_period=10,
-            batch_size=32,
-            num_workers=4
+            log_period=10
         )
     else:
         hyperparams = HyperParameters(
             lr=8e-3,
             max_iters=9000,
-            log_period=100,
-            batch_size=64,
-            num_workers=4
+            log_period=100
         )
     
     detector = FCOS(

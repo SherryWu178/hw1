@@ -248,7 +248,7 @@ def get_fpn_location_coords(
     shape_per_fpn_level: Dict[str, Tuple],
     strides_per_fpn_level: Dict[str, int],
     dtype: torch.dtype = torch.float32,
-    device: str = "cpu",
+    device: str = "cuda",
 ) -> Dict[str, torch.Tensor]:
     """
     Map every location in FPN feature map to a point on the image. This point
