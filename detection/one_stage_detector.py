@@ -182,16 +182,8 @@ class FCOSPredictionNetwork(nn.Module):
         stem_cls = [nn.Conv2d(in_channels, stem_channels[0], 3, padding=1),
                         nn.ReLU(inplace=True),
                         nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
-                        nn.ReLU(inplace=True),
-                        nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
-                        nn.ReLU(inplace=True),
-                        nn.Conv2d(stem_channels[0], stem_channels[0], 3, padding=1),
                         nn.ReLU(inplace=True)]
         stem_box = [nn.Conv2d(in_channels, stem_channels[1], 3, padding=1),
-                        nn.ReLU(inplace=True),
-                        nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
-                        nn.ReLU(inplace=True),
-                        nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
                         nn.ReLU(inplace=True),
                         nn.Conv2d(stem_channels[1], stem_channels[1], 3, padding=1),
                         nn.ReLU(inplace=True)]
@@ -414,18 +406,13 @@ class FCOS(nn.Module):
         matched_gt_deltas = [ {} for _ in range(B)]
         matched_gt_ctr = [ {} for _ in range(B)]
 
-        begin = 0
-        end = 0
         for i in range(B):
             gt_box = gt_boxes[i, :, :]
             N, _ = gt_box.shape
             matched_gt_boxes[i] = fcos_match_locations_to_gt(locations_per_fpn_level, strides_per_fpn_level,  gt_box)
-            end = end + N
             for fpn_level, locations_at_the_level in locations_per_fpn_level.items():
                 matched_gt_deltas[i][fpn_level] = fcos_get_deltas_from_locations(locations_per_fpn_level[fpn_level], matched_gt_boxes[i][fpn_level], strides_per_fpn_level[fpn_level])
                 matched_gt_ctr[i][fpn_level] = fcos_make_centerness_targets(matched_gt_deltas[i][fpn_level])
-
-            begin = end
         
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -471,15 +458,18 @@ class FCOS(nn.Module):
 
         # Create a one-hot tensor for the values
         target_cls_logits = torch.zeros(batch_size, num_locations, 20).cuda()
-        for i in range(batch_size):
-            for j in range(num_locations):
-                if matched_gt_boxes[i][j][4] == -1:
-                    target_cls_logits[i][j][int(matched_gt_boxes[i][j][4])] = 1
+
+        cls = matched_gt_boxes[:,:,4].to(torch.int)
+        mask = (cls != -1)
+        target_cls_logits[torch.arange(cls.shape[0])[:, None], torch.arange(cls.shape[1]), cls] = 1
+        target_cls_logits[~mask] = 0
 
         # print("pred_cls_logits",pred_cls_logits.shape)
         # print("target_cls_logits", target_cls_logits.shape)
 
         loss_cls = sigmoid_focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
+      
+
         # self.focal_loss(pred_cls_logits, target_cls_logits, reduction='none')
 
         # loss_cls = self.focal_loss(
