@@ -604,13 +604,12 @@ class FCOS(nn.Module):
             # Replace "pass" statement with your code
             mask = most_confident_value > test_score_thresh
             mask = mask.cuda()
-            level_pred_classes = most_confident_cls[~mask]
+            level_pred_classes = most_confident_cls[mask]
             
             # level_pred_classes[level_pred_classes == 0] = -1
-            level_pred_scores = most_confident_value[~mask].cuda()
-            level_deltas = level_deltas[~mask].cuda()
-            level_locations = level_locations[~mask].cuda()
-
+            level_pred_scores = most_confident_value[mask].cuda()
+            level_deltas = level_deltas[mask].cuda()
+            level_locations = level_locations[mask].cuda()
 
             # Step 3:
             # Replace "pass" statement with your code

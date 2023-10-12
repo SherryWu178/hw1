@@ -13,7 +13,7 @@ from sklearn.decomposition import PCA
 from skimage.color import rgb2lab, deltaE_cie76
 from collections import defaultdict
 
-PATH = "checkpoint-model-epoch1.pth"
+PATH = "/content/hw1/checkpoint-4(freezed weight)/checkpoint-model-epoch50.pth"
 
 def load_model(filename):
     return torch.load(filename)
@@ -64,20 +64,40 @@ def extract_features(model, device, test_loader):
             gt_classes.append(target.cpu().numpy())
 
     test_features = np.array(test_features)
+    return test_features, gt_classes
+
+
+def scale_to_01_range(x):
+    # compute the distribution range
+    value_range = (np.max(x) - np.min(x))
+ 
+    # move the distribution so that it starts from zero
+    # by extracting the minimal value from all its values
+    starts_from_zero = x - np.min(x)
+ 
+    # make the distribution fit [0; 1] by dividing by its range
+    return starts_from_zero / value_range
+
+
+def draw_plot(test_features, gt_classes):
     # Ensure that the features are standardized (mean=0, std=1)
     print(len(test_features))
     print(test_features[0].shape)
     # scaler = StandardScaler()
     # test_features = scaler.fit_transform(test_features)
 
-    print("standardised")
-    # Perform PCA for dimensionality reduction (optional, but can help)
-    # pca = PCA(n_components=50)  # You can adjust the number of components
-    # test_features_pca = pca.fit_transform(test_features)
-
     # Perform t-SNE on the features
     tsne = TSNE(n_components=2, random_state=0)
     tsne_results = tsne.fit_transform(test_features)
+
+ 
+    # extract x and y coordinates representing the positions of the images on T-SNE plot
+    tx = tsne[:, 0]
+    ty = tsne[:, 1]
+    
+    tx = scale_to_01_range(tx)
+    ty = scale_to_01_range(ty)
+
     print("tsne_results")
     print(tsne_results)
 
@@ -99,7 +119,7 @@ def extract_features(model, device, test_loader):
    
     print(len(mean_colors))
     print(mean_colors[0])
-    plt.scatter(tsne_results[:, 0], tsne_results[:, 1], c=mean_colors)
+    plt.scatter(tx, ty, c=mean_colors)
 
     # Create a legend with class labels
     handles = [plt.Line2D([0], [0], marker='o', color='w', label=f'Class {label}', 
@@ -113,7 +133,6 @@ def extract_features(model, device, test_loader):
 
     
     file_path = "t-SNE plot.png"  
-
     # Save the plot to the specified file
     plt.savefig(file_path, dpi=300)
 

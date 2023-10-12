@@ -158,8 +158,8 @@ def main(args):
     
     print("Training model...")
 
-    # if not args.visualize_gt:
-    #     train_model(detector, train_loader, hyperparams, overfit=args.overfit)
+    if not args.visualize_gt:
+        train_model(detector, train_loader, hyperparams, overfit=args.overfit)
     
     print("Training complete! Saving loss curve to loss.png...")
     
@@ -190,8 +190,8 @@ def main(args):
             detector,
             small_val_loader,
             val_dataset.idx_to_class,
-            score_thresh=0.7,
-            nms_thresh=0.5,
+            score_thresh=0.5,
+            nms_thresh=0.6,
             device=DEVICE,
             dtype=torch.float32,
         )
@@ -206,7 +206,7 @@ def main(args):
             detector,
             val_loader,
             val_dataset.idx_to_class,
-            score_thresh=0.4,
+            score_thresh=0.5,
             nms_thresh=0.6,
             device=DEVICE,
             dtype=torch.float32,
