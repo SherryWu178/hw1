@@ -558,15 +558,16 @@ class FCOS(nn.Module):
         pred_boxes_all_levels = []
         pred_classes_all_levels = []
         pred_scores_all_levels = []
+        strides_per_fpn_level = {"p3": 8, "p4": 16, "p5": 32}
 
         for level_name in locations_per_fpn_level.keys():
 
             # Get locations and predictions from a single level.
             # We index predictions by `[0]` to remove batch dimension.
-            level_locations = locations_per_fpn_level[level_name]
-            level_cls_logits = pred_cls_logits[level_name][0]
-            level_deltas = pred_boxreg_deltas[level_name][0]
-            level_ctr_logits = pred_ctr_logits[level_name][0]
+            level_locations = locations_per_fpn_level[level_name].cuda()
+            level_cls_logits = pred_cls_logits[level_name][0].cuda()
+            level_deltas = pred_boxreg_deltas[level_name][0].cuda()
+            level_ctr_logits = pred_ctr_logits[level_name][0].cuda()
 
             ##################################################################
             # TODO: FCOS uses the geometric mean of class probability and
@@ -596,28 +597,28 @@ class FCOS(nn.Module):
             )
             # Step 1:
             # Replace "pass" statement with your code
-            most_confident_value = tensor.max(level_pred_scores, dim = 1)
-            most_confident_cls = tensor.argmax(level_pred_scores, dim = 1)
+            most_confident_value, _ = torch.max(level_pred_scores, dim = 1)
+            most_confident_cls = torch.argmax(level_pred_scores, dim = 1).cuda()
             
             # Step 2:
             # Replace "pass" statement with your code
-            mask = torch.nonzero(most_confident_value > test_score_thresh)
+            mask = most_confident_value > test_score_thresh
+            mask = mask.cuda()
+            level_pred_classes = most_confident_cls[~mask]
             
-            level_pred_classes = most_confident_cls[mask]
-            level_pred_classes[level_pred_classes == 0] = -1
-            
-            level_pred_scores = most_confident_value[mask]
-            
-            level_pred_boxes = level_pred_boxes[mask]
+            # level_pred_classes[level_pred_classes == 0] = -1
+            level_pred_scores = most_confident_value[~mask].cuda()
+            level_deltas = level_deltas[~mask].cuda()
+            level_locations = level_locations[~mask].cuda()
 
 
             # Step 3:
             # Replace "pass" statement with your code
-            level_pred_boxes = fcos_apply_deltas_to_locations(level_deltas, level_locations)
+            level_pred_boxes = fcos_apply_deltas_to_locations(level_deltas, level_locations, strides_per_fpn_level[level_name])
 
             # Step 4: Use `images` to get (height, width) for clipping.
             # Replace "pass" statement with your code
-            height, width = images.shape
+            batch, c, height, width = images.shape
             level_pred_boxes[:, 0::2].clamp_(min=0, max=width)
             level_pred_boxes[:, 1::2].clamp_(min=0, max=height)
 

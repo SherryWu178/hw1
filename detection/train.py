@@ -157,13 +157,18 @@ def main(args):
         return
     
     print("Training model...")
-    if not args.visualize_gt:
-        train_model(detector, train_loader, hyperparams, overfit=args.overfit)
+
+    # if not args.visualize_gt:
+    #     train_model(detector, train_loader, hyperparams, overfit=args.overfit)
+    
     print("Training complete! Saving loss curve to loss.png...")
+    
     if not args.inference:
         return
+    
     print("Running inference...")
     if args.test_inference:
+        print("Test inference...")
         small_dataset = torch.utils.data.Subset(
             val_dataset,
             torch.linspace(0, len(val_dataset) - 1, steps=10).long()
@@ -221,7 +226,7 @@ if __name__ == '__main__':
         "--inference", type=bool, default=False
     )
     parser.add_argument(
-        "--test_inference", type=bool, default=False
+        "--test_inference", type=bool, default=False, 
     )
     args = parser.parse_args()
     print(args.test_inference)
