@@ -1,152 +1,73 @@
-from __future__ import print_function
-
-import imageio
-import numpy as np
 import os
-import xml.etree.ElementTree as ET
-
-import torch
-import torch.nn
-from PIL import Image
-import torchvision.transforms as transforms
-from torch.utils.data import Dataset
-
 import random
+from PIL import Image
+import torch
+from torch.utils.data import Dataset
+from torchvision import transforms
 
 class VOCDataset(Dataset):
-    CLASS_NAMES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
-                   'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
-                   'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
-    INV_CLASS = {}
-    for i in range(len(CLASS_NAMES)):
-        INV_CLASS[CLASS_NAMES[i]] = i
-
-    def __init__(self, split, size, data_dir='data/VOCdevkit/VOC2007/'):
-        super().__init__()
-        self.split = split
+    classes = ['0_black_3_legs', '5_NPN_Bipolar_Transistors', '6_Black_Rec']
+    # classes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11']
+    def __init__(self, split, size, data_dir):
         self.data_dir = data_dir
         self.size = size
-        self.img_dir = os.path.join(data_dir, 'JPEGImages')
-        self.ann_dir = os.path.join(data_dir, 'Annotations')
+        self.split = split
+        # self.classes = ['0_black_3_legs','1_Active_buzzers', '2_Breadboard_trim_potentiometer', '3_resistor', '4_development_board', '5_NPN_Bipolar_Transistors', '6_Black_Rec', '7_piezo_transducer']
+        self.classes = VOCDataset.classes
+        self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
+        self.images = self._load_images()
+        # print(self.class_to_idx)
 
-        split_file = os.path.join(data_dir, 'ImageSets/Main', split + '.txt')
-        with open(split_file) as fp:
-            self.index_list = [line.strip() for line in fp]
-        self.anno_list = self.preload_anno()
+    def _load_images(self):
+        images = []
+        data_split_path = "train" if self.split == "train" else "test"
+        for cls in self.classes:
+            class_path = os.path.join(self.data_dir, data_split_path, cls)
+            if not os.path.exists(class_path):
+                raise FileNotFoundError(f"Directory not found: {class_path}")
 
-    @classmethod
-    def get_class_name(cls, index):
-        return cls.CLASS_NAMES[index]
+            class_images = [os.path.join(class_path, img_name) for img_name in os.listdir(class_path)]
 
-    @classmethod
-    def get_class_index(cls, name):
-        return cls.INV_CLASS[name]
+            for img_path in class_images:
+                # Check if img_path ends with a valid image extension
+                if img_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                    images.append((img_path, self.class_to_idx[cls]))
+                else:
+                    print(f"Invalid image file: {img_path}")
+        return images
+
 
     def __len__(self):
-        return len(self.index_list)    
-
-
-    def preload_anno(self):
-        """
-        :return: a list of labels. each element is in the form of [class, weight],
-         where both class and weight are a numpy array in shape of [20],
-        """
-        label_list = []
-        for index in self.index_list:
-            fpath = os.path.join(self.ann_dir, index + '.xml')
-            tree = ET.parse(fpath)
-            #######################################################################
-            # TODO: Insert your code here to preload labels
-            # Hint: the folder Annotations contains .xml files with class labels
-            # for objects in the image. The `tree` variable contains the .xml
-            # information in an easy-to-access format (it might be useful to read
-            # https://docs.python.org/3/library/xml.etree.elementtree.html)
-            # Loop through the `tree` to find all objects in the image
-            #######################################################################
-
-            #  The class vector should be a 20-dimensional vector with class[i] = 1 if an object of class i is present in the image and 0 otherwise
-            class_vec = torch.zeros(20)
-
-            # The weight vector should be a 20-dimensional vector with weight[i] = 0 iff an object of class i has the `difficult` attribute set to 1 in the XML file and 1 otherwise
-            # The difficult attribute specifies whether a class is ambiguous and by setting its weight to zero it does not contribute to the loss during training 
-            weight_vec = torch.ones(20)
-
-            root = tree.getroot()
-            for child in root:
-                if child.tag == "object":
-                    index = self.INV_CLASS[child[0].text]
-                    class_vec[index] = 1
-                    
-                    if child[3].text == 1:
-                        weight_vec[index] = 0
-                    else:
-                        weight_vec[index] = 1
-
-            ######################################################################
-            #                            END OF YOUR CODE                        #
-            ######################################################################
-
-            label_list.append((class_vec, weight_vec))
-
-        return label_list
+        return len(self.images)
 
     def get_random_augmentations(self):
-        ######################################################################
-        # TODO: Return a list of random data augmentation transforms here
-        # NOTE: make sure to not augment during test and replace random crops
-        # with center crops. Hint: There are lots of possible data
-        # augmentations. Some commonly used ones are random crops, flipping,
-        # and rotation. You are encouraged to read the docs, which is found
-        # at https://pytorch.org/vision/stable/transforms.html
-        # Depending on the augmentation you use, your final image size will
-        # change and you will have to write the correct value of `flat_dim`
-        # in line 46 in simple_cnn.py
-        ######################################################################
         # Define a list of possible augmentations
         if self.split == "train":
             augmentations = [
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomVerticalFlip(p=0.5),
-                transforms.CenterCrop(size=(self.size, self.size)),
+                # transforms.CenterCrop(size=(self.size, self.size)),
                 transforms.RandomRotation(degrees=(-45, 45)),
-                # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)
             ]
         else:
             augmentations = [
-                transforms.CenterCrop(size=(self.size, self.size))
+                # transforms.CenterCrop(size=(self.size, self.size))
             ]
-
-    
         return augmentations
-
-        ######################################################################
-        #                            END OF YOUR CODE                        #
-        ######################################################################
-
-    def __getitem__(self, index):
-        """
-        :param index: a int generated by Dataloader in range [0, __len__()]
-        :return: index-th element
-        image: FloatTensor in shape of (C, H, W) in scale [-1, 1].
-        label: LongTensor in shape of (Nc, ) binary label
-        weight: FloatTensor in shape of (Nc, ) difficult or not.
-        """
-        findex = self.index_list[index]
-        fpath = os.path.join(self.img_dir, findex + '.jpg')
-
-        img = Image.open(fpath)
-
+        
+    def __getitem__(self, idx):
+        img_path, label = self.images[idx]
+        image = Image.open(img_path).convert('RGB')
+        
         trans = transforms.Compose([
             transforms.Resize(self.size),
             *self.get_random_augmentations(),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.457, 0.407], std=[0.5, 0.5, 0.5]),
         ])
-
-        img = trans(img)
-        lab_vec, wgt_vec = self.anno_list[index] 
-        image = torch.FloatTensor(img)
-        label = torch.FloatTensor(lab_vec)
-        wgt = torch.FloatTensor(wgt_vec)
-
-        return image, label, wgt
+ 
+        image = trans(image)
+        weight = torch.ones(len(self.classes))
+        class_vec = torch.zeros(len(self.classes))
+        class_vec[label] = 1
+        return image, class_vec, weight

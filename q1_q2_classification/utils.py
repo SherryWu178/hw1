@@ -4,73 +4,13 @@ import numpy as np
 import sklearn.metrics
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+import argparse
 
 
-class ARGS(object):
-    """
-    Tracks hyper-parameters for trainer code 
-        - Feel free to add your own hparams below (cannot have __ in name)
-        - Constructor will automatically support overrding for non-default values
-    
-    Example::
-        >>> args = ARGS(batch_size=23, use_cuda=True)
-        >>> print(args)
-        args.batch_size = 23
-        args.device = cuda
-        args.epochs = 14
-        args.gamma = 0.7
-        args.log_every = 100
-        args.lr = 1.0
-        args.save_model = False
-        args.test_batch_size = 1000
-        args.val_every = 100
-    """
-    # input batch size for training 
-    batch_size = 64
-    # input batch size for testing
-    test_batch_size=1000
-    # number of epochs to train for
-    epochs = 14
-    # learning rate
-    lr = 1.0
-    # Learning rate step gamma
-    gamma = 0.7
-    step_size = 1
-    # how many batches to wait before logging training status
-    log_every = 100
-    # how many batches to wait before evaluating model
-    val_every = 100
-    # set flag to True if you wish to save the model after training
-    save_at_end = False
-    # set this to value >0 if you wish to save every x epochs
-    save_freq=-1
-    # set true if using GPU during training
-    use_cuda = False
-    # input size
-    inp_size = 224
-
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            assert '__' not in k and hasattr(self, k), "invalid attribute!"
-            assert k != 'device', "device property cannot be modified"
-            setattr(self, k, v)
-        
-    def __repr__(self):
-        repr_str = ''
-        for attr in dir(self):
-            if '__' not in attr and attr !='use_cuda':
-                repr_str += 'args.{} = {}\n'.format(attr, getattr(self, attr))
-        return repr_str
-    
-    @property
-    def device(self):
-        return torch.device("cuda" if self.use_cuda else "cpu")
-
-
-def get_data_loader(name='voc', train=True, batch_size=64, split='train', inp_size=224):
+def get_data_loader(args, name='voc', train=True, batch_size=64, split='train', inp_size=224):
     if name == 'voc':
         from voc_dataset import VOCDataset
-        dataset = VOCDataset(split, inp_size)
+        dataset = VOCDataset(split, inp_size, data_dir=args.data_dir)
     else:
         raise NotImplementedError
 
@@ -78,7 +18,7 @@ def get_data_loader(name='voc', train=True, batch_size=64, split='train', inp_si
         dataset,
         batch_size=batch_size,
         shuffle=train,
-        num_workers=4,
+        num_workers=2,
     )
     return loader
 
@@ -143,3 +83,58 @@ def eval_dataset_map(model, device, test_loader):
     mAP = np.mean(AP)
 
     return AP, mAP
+
+def count_classes(root_folder):
+    train_folder = os.path.join(root_folder, "train")
+    # List all subdirectories in the train folder, excluding hidden folders
+    subdirectories = [folder for folder in os.listdir(train_folder) if not folder.startswith('.')]
+    num_classes = len(subdirectories)
+    return num_classes
+
+def get_class_names(root_folder):
+    train_folder = os.path.join(root_folder, "train")
+    class_names = os.listdir(train_folder)
+    return sorted(class_names)
+
+def parse_arguments():
+    default_device = torch.device("cuda")
+    default_batch_size = 8
+    default_test_batch_size = 1000
+    default_epochs = 50
+    default_lr = 0.00005
+    default_gamma = 0.1
+    default_step_size = 30
+    default_log_every = 100
+    default_val_every = 5
+    default_save_at_end = True
+    default_save_freq = 5
+    default_use_cuda = True
+    default_inp_size = 224
+    default_canny_low = 100
+    default_canny_high = 200
+    default_data_dir = "data/new_set_up_frames/"
+    default_run_name = "new_run"
+
+    parser = argparse.ArgumentParser(description='Description of your program')
+
+    parser.add_argument('--device', type=int, default=default_device, help='Device')
+    parser.add_argument('--batch_size', type=int, default=default_batch_size, help='Batch size for training')
+    parser.add_argument('--test_batch_size', type=int, default=default_test_batch_size, help='Batch size for testing')
+    parser.add_argument('--epochs', type=int, default=default_epochs, help='Number of epochs')
+    parser.add_argument('--lr', type=float, default=default_lr, help='Learning rate')
+    parser.add_argument('--gamma', type=float, default=default_gamma, help='Gamma value')
+    parser.add_argument('--step_size', type=int, default=default_step_size, help='Step size for learning rate scheduler')
+    parser.add_argument('--log_every', type=int, default=default_log_every, help='Frequency to log training status')
+    parser.add_argument('--val_every', type=int, default=default_val_every, help='Frequency to evaluate model')
+    parser.add_argument('--save_at_end', type=bool, default=default_save_at_end, help='Whether to save model at the end of training')
+    parser.add_argument('--save_freq', type=int, default=default_save_freq, help='Frequency to save model during training')
+    parser.add_argument('--use_cuda', type=bool, default=default_use_cuda, help='Whether to use CUDA for training')
+    parser.add_argument('--inp_size', type=int, default=default_inp_size, help='Input size')
+    parser.add_argument('--canny_low', type=int, default=default_canny_low, help='Canny low threshold')
+    parser.add_argument('--canny_high', type=int, default=default_canny_high, help='Canny high threshold')
+    parser.add_argument('--data_dir', type=str, default=default_data_dir, help='Directory where the dataset is located')
+    parser.add_argument('--run_name', type=str, default=default_run_name, help='Given WandB a run name')
+
+    args = parser.parse_args()
+    print(args)
+    return args
